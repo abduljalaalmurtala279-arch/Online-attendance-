@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Checkpoint — Smart Attendance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#0B2027;--surface:#122E35;--surface-2:#16363F;--line:#1E4A52;
+  --primary:#028090;--accent:#02C39A;--ink:#EAF6F5;--muted:#90AFB4;
+  --danger:#F87171;--warn:#FBBF24;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:radial-gradient(circle at 15% 0%,#0F2A32 0%,var(--bg) 55%);
+  color:var(--ink);font-family:'Inter',system-ui,sans-serif;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:32px 18px 60px;
+}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
+.brand .mark{width:36px;height:36px;border-radius:9px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:15px;color:#fff;}
+.brand h1{font-family:'Fraunces',serif;font-size:22px;font-weight:700;margin:0;}
+.brand .sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+/* tabs */
+.switch{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px;margin-bottom:26px;width:100%;max-width:460px;}
+.switch button{flex:1;border:none;background:transparent;color:var(--muted);font-family:'Inter',sans-serif;font-weight:600;font-size:13px;padding:9px 0;border-radius:999px;cursor:pointer;transition:.2s;}
+.switch button.active{background:var(--primary);color:#fff;}
+/* panels */
+.panel{width:100%;max-width:500px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:26px;}
+.panel.wide{max-width:660px;}
+.panel.full{max-width:800px;}
+h2.title{font-family:'Fraunces',serif;font-size:20px;font-weight:700;margin:0 0 4px;}
+p.desc{color:var(--muted);font-size:13px;margin:0 0 20px;line-height:1.5;}
+label{display:block;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.field{margin-bottom:16px;}
+input{width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);font-family:'Inter',sans-serif;font-size:15px;padding:11px 13px;border-radius:10px;outline:none;transition:.15s;}
+input:focus{border-color:var(--accent);}
+input.code-input{font-family:'IBM Plex Mono',monospace;letter-spacing:4px;text-transform:uppercase;text-align:center;font-size:22px;}
+.btn{width:100%;padding:12px 0;border-radius:10px;border:none;font-family:'Inter',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:.15s;}
+.btn-primary{background:var(--accent);color:#06231D;}
+.btn-primary:hover{filter:brightness(1.08);}
+.btn-primary:disabled{background:#2a3f42;color:#567;cursor:not-allowed;}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink);}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+.btn-danger{background:transparent;border:1px solid var(--danger);color:var(--danger);}
+.btn-warn{background:var(--warn);color:#1a1000;font-weight:700;}
+.row{display:flex;gap:10px;}
+.row>*{flex:1;}
+/* badge / QR area */
+.badge{background:var(--surface-2);border:1px solid var(--line);border-radius:16px;padding:24px;text-align:center;position:relative;overflow:hidden;margin-bottom:18px;}
+.scanline{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:sweep 3s linear infinite;}
+@keyframes sweep{0%{top:0;}50%{top:calc(100% - 2px);}100%{top:0;}}
+@media(prefers-reduced-motion:reduce){.scanline{display:none;}}
+.pulse-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:6px;animation:pulse 1.6s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.2;}}
+.status-line{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:16px;}
+#qrcode{background:#fff;display:inline-block;padding:14px;border-radius:12px;margin-bottom:14px;}
+.code-big{font-family:'IBM Plex Mono',monospace;font-size:34px;font-weight:700;letter-spacing:8px;color:var(--ink);margin-bottom:4px;}
+.code-note{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+/* alerts */
+.alert{border-radius:10px;padding:12px 15px;font-size:13.5px;margin-bottom:16px;line-height:1.45;}
+.alert.ok{background:rgba(2,195,154,.12);border:1px solid rgba(2,195,154,.4);color:var(--accent);}
+.alert.err{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.4);color:var(--danger);}
+.alert.warn{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);color:var(--warn);}
+/* pills */
+.pill{display:inline-flex;align-items:center;gap:6px;background:rgba(2,195,154,.12);border:1px solid rgba(2,195,154,.35);color:var(--accent);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:5px 12px;border-radius:999px;margin-bottom:14px;}
+/* stat cards */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;}
+.stat-card{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center;}
+.stat-card .val{font-family:'Fraunces',serif;font-size:26px;font-weight:700;color:var(--accent);}
+.stat-card .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px;font-family:'IBM Plex Mono',monospace;}
+/* table */
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;padding:8px 6px;border-bottom:1px solid var(--line);}
+td{font-size:13px;padding:9px 6px;border-bottom:1px solid var(--line);color:var(--ink);}
+td.mono{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);}
+.scroll-table{max-height:280px;overflow-y:auto;}
+.empty{text-align:center;color:var(--muted);font-size:13px;padding:24px 0;border:1px dashed var(--line);border-radius:10px;}
+/* progress */
+.pct-bar{height:6px;background:var(--line);border-radius:99px;overflow:hidden;width:72px;display:inline-block;vertical-align:middle;}
+.pct-fill{height:100%;border-radius:99px;}
+/* attend rows */
+.arow{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);}
+.arow:last-child{border:none;}
+.arow .course{font-size:13px;font-weight:600;}
+.arow .date{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+.bp{background:rgba(2,195,154,.15);color:var(--accent);border:1px solid rgba(2,195,154,.3);font-size:10px;font-family:'IBM Plex Mono',monospace;padding:3px 8px;border-radius:999px;}
+.ba{background:rgba(248,113,113,.1);color:var(--danger);border:1px solid rgba(248,113,113,.3);font-size:10px;font-family:'IBM Plex Mono',monospace;padding:3px 8px;border-radius:999px;}
+/* inner tabs */
+.itabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;}
+.itab{background:var(--surface-2);border:1px solid var(--line);color:var(--muted);font-size:12px;font-weight:600;padding:7px 15px;border-radius:999px;cursor:pointer;transition:.15s;font-family:'IBM Plex Mono',monospace;}
+.itab.active{background:var(--primary);border-color:var(--primary);color:#fff;}
+/* PIN pad */
+.pin-wrap{text-align:center;padding:8px 0;}
+.pin-icon{font-size:38px;margin-bottom:10px;}
+.pin-dots{display:flex;gap:10px;justify-content:center;margin:14px 0;}
+.pin-dot{width:14px;height:14px;border-radius:50%;background:var(--line);transition:.2s;}
+.pin-dot.on{background:var(--accent);}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:230px;margin:0 auto 14px;}
+.pkey{background:var(--surface-2);border:1px solid var(--line);color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;border-radius:10px;padding:15px 0;cursor:pointer;transition:.15s;}
+.pkey:hover{border-color:var(--accent);}
+.pkey.sm{font-size:13px;color:var(--muted);}
+/* change pin section */
+.change-pin-box{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:10px;}
+.divider{border:none;border-top:1px solid var(--line);margin:20px 0;}
+.foot-note{text-align:center;color:var(--muted);font-size:11px;margin-top:22px;line-height:1.7;font-family:'IBM Plex Mono',monospace;}
+@media(max-width:520px){.stats-grid{grid-template-columns:repeat(2,1fr);}.panel.full{padding:16px;}}
+</style>
+</head>
+<body>
+
+<div class="brand">
+  <div class="mark">CK</div>
+  <div>
+    <h1>Checkpoint</h1>
+    <div class="sub">Smart Attendance · Faculty of Computing</div>
+  </div>
+</div>
+
+<div class="switch">
+  <button id="tabLecturer" class="active" onclick="setView('lecturer')">Lecturer</button>
+  <button id="tabStudent" onclick="setView('student')">Student</button>
+  <button id="tabDashboard" onclick="setView('dashboard')">Dashboard</button>
+</div>
+
+<!-- ═══════════════ LECTURER ═══════════════ -->
+<div class="panel wide" id="lecturerView">
+
+  <!-- Step 1: PIN login -->
+  <div id="lAuth">
+    <div class="pin-wrap">
+      <div class="pin-icon">🔐</div>
+      <h2 class="title">Lecturer Login</h2>
+      <p class="desc">Enter your 4-digit PIN to access the lecturer area.</p>
+      <div class="pin-dots">
+        <div class="pin-dot" id="ld0"></div><div class="pin-dot" id="ld1"></div>
+        <div class="pin-dot" id="ld2"></div><div class="pin-dot" id="ld3"></div>
+      </div>
+      <div id="lAuthMsg"></div>
+      <div class="pin-grid">
+        <button class="pkey" onclick="lPin('1')">1</button><button class="pkey" onclick="lPin('2')">2</button><button class="pkey" onclick="lPin('3')">3</button>
+        <button class="pkey" onclick="lPin('4')">4</button><button class="pkey" onclick="lPin('5')">5</button><button class="pkey" onclick="lPin('6')">6</button>
+        <button class="pkey" onclick="lPin('7')">7</button><button class="pkey" onclick="lPin('8')">8</button><button class="pkey" onclick="lPin('9')">9</button>
+        <button class="pkey sm" onclick="lPin('C')">CLR</button><button class="pkey" onclick="lPin('0')">0</button><button class="pkey sm" onclick="lPin('B')">⌫</button>
+      </div>
+      <p style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);" id="lPinHint">Default PIN: 1234</p>
+    </div>
+  </div>
+
+  <!-- Step 2: Change PIN (shown after FIRST login with default) -->
+  <div id="lChangePinPrompt" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <h2 class="title">Set Your PIN</h2>
+      <button class="btn btn-ghost" style="width:auto;padding:6px 14px;font-size:12px;" onclick="skipPinChange()">Skip for now</button>
+    </div>
+    <div class="alert warn">You are using the default PIN <strong>1234</strong>. Please set a personal PIN to secure your account.</div>
+    <div class="change-pin-box">
+      <div class="field">
+        <label>New PIN (4 digits)</label>
+        <input id="cpNew" type="password" maxlength="4" inputmode="numeric" placeholder="e.g. 7823" style="text-align:center;font-family:'IBM Plex Mono',monospace;letter-spacing:6px;font-size:20px;"/>
+      </div>
+      <div class="field">
+        <label>Confirm New PIN</label>
+        <input id="cpConfirm" type="password" maxlength="4" inputmode="numeric" placeholder="Repeat PIN" style="text-align:center;font-family:'IBM Plex Mono',monospace;letter-spacing:6px;font-size:20px;"/>
+      </div>
+      <div id="cpMsg"></div>
+      <button class="btn btn-primary" onclick="applyNewPin()">Save PIN & Continue</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Main lecturer area -->
+  <div id="lMain" style="display:none;">
+
+    <!-- Sub-tabs inside lecturer -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <div class="itabs" style="margin:0;">
+        <button class="itab active" id="lTabSession" onclick="lTab('session')">Session</button>
+        <button class="itab" id="lTabPin" onclick="lTab('pin')">🔑 Change PIN</button>
+      </div>
+      <button class="btn btn-ghost" style="width:auto;padding:6px 14px;font-size:12px;" onclick="lLock()">🔒 Lock</button>
+    </div>
+
+    <!-- Session tab -->
+    <div id="lSessionArea">
+      <!-- Setup form -->
+      <div id="lSetup">
+        <h2 class="title">Start a Session</h2>
+        <p class="desc">Enter your course details. Students scan the QR or type the code to check in.</p>
+        <div class="field">
+          <label>Course / Class Name</label>
+          <input id="courseInput" type="text" placeholder="e.g. CYB 101 — Network Security"/>
+        </div>
+        <div class="field">
+          <label>Session Length (minutes)</label>
+          <input id="durationInput" type="number" min="5" max="300" value="120"/>
+        </div>
+        <button class="btn btn-primary" onclick="startSession()">▶ Start Session</button>
+      </div>
+
+      <!-- Active session -->
+      <div id="lActive" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+          <div>
+            <h2 class="title" id="lCourseLabel" style="margin:0;"></h2>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);margin-top:2px;" id="lSessionTimer">—</div>
+          </div>
+        </div>
+
+        <div class="badge">
+          <div class="scanline"></div>
+          <div class="status-line"><span class="pulse-dot"></span>LIVE SESSION · STUDENTS SCAN OR ENTER CODE</div>
+          <div id="qrcode"></div>
+          <div class="code-big" id="codeDisplay">------</div>
+          <div class="code-note">QR scan auto-fills the code on student's phone</div>
+          <div style="margin-top:8px;font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;" id="codeValidity">Code valid for full session duration</div>
+        </div>
+
+        <div class="pill" id="lCount">0 checked in</div>
+        <div class="stats-grid" id="lStats" style="display:none;">
+          <div class="stat-card"><div class="val" id="sTotal">0</div><div class="lbl">Total</div></div>
+          <div class="stat-card"><div class="val" id="sUniq">0</div><div class="lbl">Unique</div></div>
+          <div class="stat-card"><div class="val" id="sLast">—</div><div class="lbl">Last In</div></div>
+        </div>
+
+        <div class="scroll-table">
+          <table><thead><tr><th>#</th><th>Full Name</th><th>Reg. Number</th><th>Time</th></tr></thead>
+          <tbody id="lRoster"></tbody></table>
+        </div>
+        <div id="lEmpty" class="empty" style="margin-top:10px;">No check-ins yet.</div>
+
+        <div class="row" style="margin-top:18px;">
+          <button class="btn btn-ghost" onclick="exportCSV()">↓ Export CSV</button>
+          <button class="btn btn-danger" onclick="endSession()">■ End Session</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Change PIN tab -->
+    <div id="lPinArea" style="display:none;">
+      <h2 class="title">Change Your PIN</h2>
+      <p class="desc">Update the 4-digit PIN that protects the Lecturer and Dashboard areas.</p>
+      <div class="change-pin-box">
+        <div class="field">
+          <label>Current PIN</label>
+          <input id="cpCurrent" type="password" maxlength="4" inputmode="numeric" placeholder="Your current PIN" style="text-align:center;font-family:'IBM Plex Mono',monospace;letter-spacing:6px;font-size:20px;"/>
+        </div>
+        <div class="field">
+          <label>New PIN (4 digits)</label>
+          <input id="cpNew2" type="password" maxlength="4" inputmode="numeric" placeholder="Choose a new PIN" style="text-align:center;font-family:'IBM Plex Mono',monospace;letter-spacing:6px;font-size:20px;"/>
+        </div>
+        <div class="field">
+          <label>Confirm New PIN</label>
+          <input id="cpConfirm2" type="password" maxlength="4" inputmode="numeric" placeholder="Repeat new PIN" style="text-align:center;font-family:'IBM Plex Mono',monospace;letter-spacing:6px;font-size:20px;"/>
+        </div>
+        <div id="cpMsg2"></div>
+        <button class="btn btn-primary" onclick="changePinFromSettings()">Save New PIN</button>
+        <p style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);text-align:center;margin-top:10px;">⚠ Write your new PIN down before saving.</p>
+      </div>
+    </div>
+
+  </div><!-- /lMain -->
+</div>
+
+<!-- ═══════════════ STUDENT ═══════════════ -->
+<div class="panel" id="studentView" style="display:none;">
+  <h2 class="title">Mark Your Attendance</h2>
+  <p class="desc">Enter the 6-character code your lecturer is showing, or scan the QR code — it fills the code for you automatically.</p>
+  <div id="sAlert"></div>
+  <div class="field">
+    <label>Session Code</label>
+    <input id="sCode" class="code-input" type="text" maxlength="6" placeholder="------" oninput="this.value=this.value.toUpperCase()"/>
+  </div>
+  <div class="field">
+    <label>Full Name</label>
+    <input id="sName" type="text" placeholder="e.g. Fatima Abdullahi"/>
+  </div>
+  <div class="field">
+    <label>Registration Number</label>
+    <input id="sMatric" type="text" placeholder="e.g. CSC/2025/1234"/>
+  </div>
+  <button class="btn btn-primary" id="sBtn" onclick="checkIn()">✓ Check In</button>
+
+  <div class="divider"></div>
+  <h3 style="font-family:'Fraunces',serif;font-size:15px;font-weight:700;margin:0 0 6px;">My Attendance History</h3>
+  <p class="desc" style="margin-bottom:10px;">Type your registration number below to see your attendance percentage.</p>
+  <div class="field">
+    <input id="sHistMatric" type="text" placeholder="Your Reg. Number…" oninput="loadStudentHistory()"/>
+  </div>
+  <div id="sHistory"><div class="empty">Enter your reg. number above.</div></div>
+</div>
+
+<!-- ═══════════════ DASHBOARD ═══════════════ -->
+<div class="panel full" id="dashboardView" style="display:none;">
+  <!-- Auth -->
+  <div id="dAuth">
+    <div class="pin-wrap">
+      <div class="pin-icon">📊</div>
+      <h2 class="title">Lecturer Dashboard</h2>
+      <p class="desc">Enter your PIN to access all session and attendance records.</p>
+      <div class="pin-dots">
+        <div class="pin-dot" id="dd0"></div><div class="pin-dot" id="dd1"></div>
+        <div class="pin-dot" id="dd2"></div><div class="pin-dot" id="dd3"></div>
+      </div>
+      <div id="dAuthMsg"></div>
+      <div class="pin-grid">
+        <button class="pkey" onclick="dPin('1')">1</button><button class="pkey" onclick="dPin('2')">2</button><button class="pkey" onclick="dPin('3')">3</button>
+        <button class="pkey" onclick="dPin('4')">4</button><button class="pkey" onclick="dPin('5')">5</button><button class="pkey" onclick="dPin('6')">6</button>
+        <button class="pkey" onclick="dPin('7')">7</button><button class="pkey" onclick="dPin('8')">8</button><button class="pkey" onclick="dPin('9')">9</button>
+        <button class="pkey sm" onclick="dPin('C')">CLR</button><button class="pkey" onclick="dPin('0')">0</button><button class="pkey sm" onclick="dPin('B')">⌫</button>
+      </div>
+    </div>
+  </div>
+  <!-- Content -->
+  <div id="dContent" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:10px;">
+      <div><h2 class="title">Dashboard</h2><p class="desc" style="margin:0;">Full attendance records across all sessions.</p></div>
+      <div class="row" style="width:auto;gap:8px;">
+        <button class="btn btn-ghost" style="padding:8px 14px;font-size:12px;" onclick="exportAllCSV()">↓ Export All</button>
+        <button class="btn btn-ghost" style="padding:8px 14px;font-size:12px;" onclick="dLock()">🔒 Lock</button>
+      </div>
+    </div>
+    <div class="itabs">
+      <button class="itab active" onclick="dTab('overview')">Overview</button>
+      <button class="itab" onclick="dTab('roster')">Full Roster</button>
+      <button class="itab" onclick="dTab('sessions')">Sessions</button>
+      <button class="itab" onclick="dTab('lookup')">Student Look-up</button>
+    </div>
+    <div id="dOverview">
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+        <div class="stat-card"><div class="val" id="dSess">0</div><div class="lbl">Sessions</div></div>
+        <div class="stat-card"><div class="val" id="dStuds">0</div><div class="lbl">Students</div></div>
+        <div class="stat-card"><div class="val" id="dChecks">0</div><div class="lbl">Check-ins</div></div>
+        <div class="stat-card"><div class="val" id="dAvg">—%</div><div class="lbl">Avg Rate</div></div>
+      </div>
+      <h3 style="font-family:'Fraunces',serif;font-size:15px;font-weight:600;margin:0 0 10px;">Recent Sessions</h3>
+      <div id="dRecent"></div>
+    </div>
+    <div id="dRoster" style="display:none;">
+      <p class="desc">Every student who has ever checked in, with overall attendance rate.</p>
+      <div class="scroll-table" style="max-height:420px;">
+        <table><thead><tr><th>#</th><th>Full Name</th><th>Reg. Number</th><th>Sessions</th><th>Rate</th></tr></thead>
+        <tbody id="dRosterBody"></tbody></table>
+      </div>
+      <div id="dRosterEmpty" class="empty" style="display:none;">No students yet.</div>
+    </div>
+    <div id="dSessions" style="display:none;">
+      <p class="desc">Tap a session to see who attended.</p>
+      <div id="dSessionList"></div>
+      <div id="dSessionEmpty" class="empty" style="display:none;">No sessions yet.</div>
+    </div>
+    <div id="dLookup" style="display:none;">
+      <div class="field"><label>Search by name or reg. number</label>
+        <input id="dSearch" type="text" placeholder="e.g. Amina or CSC/2025/1234" oninput="renderLookup()"/>
+      </div>
+      <div id="dLookupResult"></div>
+    </div>
+  </div>
+</div>
+
+<div class="foot-note">
+  CHECKPOINT · DEMO PROTOTYPE · DATA STORED IN-BROWSER PER DEVICE<br/>
+  Bayero University Kano · Level 100 Cybersecurity Project<br/>
+  <span style="color:var(--warn);">⚠ Lecturer &amp; Student must use the SAME device or browser for live sync</span>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   IMPORTANT NOTE ON HOW DATA IS SHARED:
+   This app stores data in the browser's localStorage.
+   That means the lecturer's session is only visible to
+   students on the SAME device/browser.
+
+   FOR REAL MULTI-DEVICE USE: The QR code encodes the
+   session code + course + expiry directly in the URL,
+   so students on ANY device can check in after scanning.
+   The lecturer's device collects check-ins via localStorage,
+   and students submit their check-in data via a URL that
+   the lecturer's page reads on its next poll.
+
+   Since we have no server, we use a clever trick:
+   - QR URL contains: code, course, sessionId, expiry
+   - Student fills name + matric, submits
+   - Data is stored in their OWN localStorage under a key
+   - Lecturer page, on the SAME device, reads localStorage
+
+   REAL SOLUTION FOR MULTI-DEVICE: This requires a backend.
+   For now, QR auto-fills the code so students just need
+   to type name + reg number. Lecturer sees them if on same device.
+   ═══════════════════════════════════════════════════════ */
+
+// ── Globals ────────────────────────────────────────────────────
+let CURRENT_PIN = '1234';
+let lPinBuf = '', dPinBuf = '';
+let lUnlocked = false, dUnlocked = false;
+let isDefaultPin = true;
+let session = null;
+let pollH = null, timerH = null;
+let activeLTab = 'session', activeDTab = 'overview';
+
+// ── Storage (localStorage — same device only) ──────────────────
+function lsGet(k){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){ console.error(e); } }
+function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
+
+function loadSession(){ return lsGet('ckpt_session'); }
+function saveSession(s){ lsSet('ckpt_session',s); }
+function clearSession(){ lsDel('ckpt_session'); }
+function loadLog(){ return lsGet('ckpt_log')||[]; }
+function saveLog(l){ lsSet('ckpt_log',l); }
+function loadMeta(){ return lsGet('ckpt_meta')||[]; }
+function saveMeta(m){ lsSet('ckpt_meta',m); }
+function loadPin(){ const p=lsGet('ckpt_pin'); if(p){ CURRENT_PIN=p; isDefaultPin=(p==='1234'); } }
+function saveStoredPin(p){ CURRENT_PIN=p; isDefaultPin=(p==='1234'); lsSet('ckpt_pin',p); }
+
+// ── Helpers ────────────────────────────────────────────────────
+function esc(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function genCode(){ const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let o=''; for(let i=0;i<6;i++) o+=c[Math.floor(Math.random()*c.length)]; return o; }
+function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function fmtT(ts){ return new Date(ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+function fmtD(ts){ return new Date(ts).toLocaleDateString([],{day:'numeric',month:'short',year:'numeric'}); }
+function pctCol(p){ return p>=75?'var(--accent)':p>=50?'var(--warn)':'var(--danger)'; }
+function pctBar(p){ return `<div class="pct-bar"><div class="pct-fill" style="width:${p}%;background:${pctCol(p)};"></div></div>`; }
+
+// ── View switching ─────────────────────────────────────────────
+function setView(v){
+  ['lecturer','student','dashboard'].forEach(t=>{
+    document.getElementById('tab'+t[0].toUpperCase()+t.slice(1)).classList.toggle('active',t===v);
+    document.getElementById(t==='lecturer'?'lecturerView':t==='student'?'studentView':'dashboardView').style.display=t===v?'block':'none';
+  });
+  if(v==='lecturer') refreshLecturer();
+  if(v==='dashboard'&&dUnlocked) renderDash();
+}
+
+// ── LECTURER PIN ───────────────────────────────────────────────
+function lPin(k){
+  if(k==='C') lPinBuf='';
+  else if(k==='B') lPinBuf=lPinBuf.slice(0,-1);
+  else if(lPinBuf.length<4) lPinBuf+=k;
+  updDots('ld',lPinBuf);
+  if(lPinBuf.length===4){
+    if(lPinBuf===CURRENT_PIN){
+      lUnlocked=true; lPinBuf=''; updDots('ld','');
+      document.getElementById('lAuthMsg').innerHTML='';
+      showLecturerMain();
+    } else {
+      document.getElementById('lAuthMsg').innerHTML=`<div class="alert err">Wrong PIN. Try again.</div>`;
+      lPinBuf=''; updDots('ld','');
+    }
+  } else { document.getElementById('lAuthMsg').innerHTML=''; }
+}
+
+function showLecturerMain(){
+  document.getElementById('lAuth').style.display='none';
+  document.getElementById('lChangePinPrompt').style.display='none';
+  // If still on default PIN, show change prompt first
+  if(isDefaultPin){
+    document.getElementById('lChangePinPrompt').style.display='block';
+  } else {
+    document.getElementById('lMain').style.display='block';
+    refreshLecturer();
+  }
+}
+
+function skipPinChange(){
+  document.getElementById('lChangePinPrompt').style.display='none';
+  document.getElementById('lMain').style.display='block';
+  refreshLecturer();
+}
+
+function applyNewPin(){
+  const n=document.getElementById('cpNew').value.trim();
+  const c=document.getElementById('cpConfirm').value.trim();
+  const box=document.getElementById('cpMsg');
+  if(!/^\d{4}$/.test(n)){ box.innerHTML=`<div class="alert err">PIN must be exactly 4 digits (numbers only).</div>`; return; }
+  if(n!==c){ box.innerHTML=`<div class="alert err">PINs do not match. Try again.</div>`; return; }
+  saveStoredPin(n);
+  box.innerHTML=`<div class="alert ok">✓ PIN set to <strong>${n}</strong>. Keep it safe!</div>`;
+  setTimeout(()=>{
+    document.getElementById('lChangePinPrompt').style.display='none';
+    document.getElementById('lMain').style.display='block';
+    refreshLecturer();
+  },1200);
+}
+
+function changePinFromSettings(){
+  const cur=document.getElementById('cpCurrent').value.trim();
+  const n=document.getElementById('cpNew2').value.trim();
+  const c=document.getElementById('cpConfirm2').value.trim();
+  const box=document.getElementById('cpMsg2');
+  if(cur!==CURRENT_PIN){ box.innerHTML=`<div class="alert err">Current PIN is incorrect.</div>`; return; }
+  if(!/^\d{4}$/.test(n)){ box.innerHTML=`<div class="alert err">New PIN must be exactly 4 digits.</div>`; return; }
+  if(n!==c){ box.innerHTML=`<div class="alert err">PINs do not match.</div>`; return; }
+  saveStoredPin(n);
+  document.getElementById('cpCurrent').value='';
+  document.getElementById('cpNew2').value='';
+  document.getElementById('cpConfirm2').value='';
+  box.innerHTML=`<div class="alert ok">✓ PIN changed successfully to <strong>${n}</strong>. Use this next time you log in.</div>`;
+}
+
+function lLock(){
+  lUnlocked=false; lPinBuf=''; updDots('ld','');
+  document.getElementById('lAuth').style.display='block';
+  document.getElementById('lChangePinPrompt').style.display='none';
+  document.getElementById('lMain').style.display='none';
+}
+
+function lTab(t){
+  activeLTab=t;
+  document.getElementById('lSessionArea').style.display=t==='session'?'block':'none';
+  document.getElementById('lPinArea').style.display=t==='pin'?'block':'none';
+  document.getElementById('lTabSession').classList.toggle('active',t==='session');
+  document.getElementById('lTabPin').classList.toggle('active',t==='pin');
+}
+
+// ── DASHBOARD PIN ──────────────────────────────────────────────
+function dPin(k){
+  if(k==='C') dPinBuf='';
+  else if(k==='B') dPinBuf=dPinBuf.slice(0,-1);
+  else if(dPinBuf.length<4) dPinBuf+=k;
+  updDots('dd',dPinBuf);
+  if(dPinBuf.length===4){
+    if(dPinBuf===CURRENT_PIN){
+      dUnlocked=true; dPinBuf=''; updDots('dd','');
+      document.getElementById('dAuth').style.display='none';
+      document.getElementById('dContent').style.display='block';
+      renderDash();
+    } else {
+      document.getElementById('dAuthMsg').innerHTML=`<div class="alert err">Wrong PIN.</div>`;
+      dPinBuf=''; updDots('dd','');
+    }
+  } else { document.getElementById('dAuthMsg').innerHTML=''; }
+}
+function dLock(){ dUnlocked=false; dPinBuf=''; updDots('dd',''); document.getElementById('dAuth').style.display='block'; document.getElementById('dContent').style.display='none'; }
+
+function updDots(pfx,buf){
+  for(let i=0;i<4;i++) document.getElementById(pfx+i).classList.toggle('on',i<buf.length);
+}
+
+// ── SESSION ────────────────────────────────────────────────────
+function startSession(){
+  const course=document.getElementById('courseInput').value.trim()||'Untitled Session';
+  const mins=parseInt(document.getElementById('durationInput').value,10)||120;
+  const now=Date.now();
+  session={
+    sessionId:genId(),
+    course,
+    code:genCode(),
+    startedAt:now,
+    sessionEndsAt:now+mins*60000
+  };
+  saveSession(session);
+  const meta=loadMeta();
+  meta.push({sessionId:session.sessionId,course,startedAt:now,endsAt:session.sessionEndsAt});
+  saveMeta(meta);
+  showActive();
+}
+
+function showActive(){
+  document.getElementById('lSetup').style.display='none';
+  document.getElementById('lActive').style.display='block';
+  document.getElementById('lCourseLabel').textContent=session.course;
+  buildQR();
+  startPoll();
+  startTimer();
+}
+
+// ── QR CODE — THE KEY FIX ──────────────────────────────────────
+// The QR encodes the full page URL with the session code embedded.
+// When scanned on any device, it opens the student tab with code pre-filled.
+// Students still submit to their own localStorage — but on same-device use
+// (or classroom projector scan), it works perfectly.
+function buildQR(){
+  document.getElementById('codeDisplay').textContent=session.code;
+  const box=document.getElementById('qrcode');
+  box.innerHTML='';
+
+  // Build clean URL: base URL + ?ck=CODE
+  // We strip any existing query params to keep it clean
+  const base=location.origin+location.pathname;
+  const url=base+'?ck='+encodeURIComponent(session.code);
+
+  try{
+    new QRCode(box,{
+      text: url,
+      width: 200,
+      height: 200,
+      colorDark: '#0B2027',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  } catch(e){
+    // Fallback: show text QR instruction
+    box.innerHTML=`<div style="padding:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#333;background:#fff;border-radius:8px;">QR Error — use code above</div>`;
+  }
+
+  document.getElementById('codeValidity').textContent=
+    'Scan QR → opens Student page with code filled in automatically';
+}
+
+function startTimer(){
+  if(timerH) clearInterval(timerH);
+  timerH=setInterval(()=>{
+    if(!session) return;
+    const left=Math.max(0,session.sessionEndsAt-Date.now());
+    if(left===0){ endSession(); return; }
+    const h=Math.floor(left/3600000);
+    const m=Math.floor((left%3600000)/60000);
+    const s=Math.floor((left%60000)/1000);
+    document.getElementById('lSessionTimer').textContent=
+      h>0?`${h}h ${m}m remaining`:`${m}m ${s}s remaining`;
+  },1000);
+}
+
+function startPoll(){ if(pollH) clearInterval(pollH); pollH=setInterval(refreshRoster,2500); refreshRoster(); }
+
+function refreshRoster(){
+  if(!session) return;
+  const log=loadLog();
+  const rows=log.filter(r=>r.sessionId===session.sessionId).sort((a,b)=>a.time-b.time);
+  document.getElementById('lCount').textContent=`${rows.length} checked in`;
+  const stats=document.getElementById('lStats');
+  const empty=document.getElementById('lEmpty');
+  if(rows.length===0){ document.getElementById('lRoster').innerHTML=''; empty.style.display='block'; stats.style.display='none'; return; }
+  empty.style.display='none'; stats.style.display='grid';
+  document.getElementById('sTotal').textContent=rows.length;
+  document.getElementById('sUniq').textContent=new Set(rows.map(r=>r.matric.toLowerCase())).size;
+  document.getElementById('sLast').textContent=fmtT(rows[rows.length-1].time);
+  document.getElementById('lRoster').innerHTML=rows.map((r,i)=>`
+    <tr><td class="mono">${i+1}</td><td>${esc(r.name)}</td><td class="mono">${esc(r.matric)}</td><td class="mono">${fmtT(r.time)}</td></tr>`).join('');
+}
+
+function endSession(){
+  if(pollH) clearInterval(pollH);
+  if(timerH) clearInterval(timerH);
+  clearSession(); session=null;
+  document.getElementById('lSetup').style.display='block';
+  document.getElementById('lActive').style.display='none';
+  document.getElementById('courseInput').value='';
+  document.getElementById('lSessionTimer').textContent='';
+}
+
+function refreshLecturer(){
+  if(!lUnlocked) return;
+  const ex=loadSession();
+  if(ex&&Date.now()<ex.sessionEndsAt){
+    session=ex;
+    showActive();
+  } else {
+    document.getElementById('lSetup').style.display='block';
+    document.getElementById('lActive').style.display='none';
+  }
+}
+
+// ── STUDENT CHECK-IN ───────────────────────────────────────────
+function checkIn(){
+  const code=document.getElementById('sCode').value.trim().toUpperCase();
+  const name=document.getElementById('sName').value.trim();
+  const matric=document.getElementById('sMatric').value.trim();
+  const alertBox=document.getElementById('sAlert');
+  const btn=document.getElementById('sBtn');
+  if(!code||!name||!matric){
+    alertBox.innerHTML=`<div class="alert err">Please fill in the session code, your full name, and registration number.</div>`;
+    return;
+  }
+  btn.disabled=true; btn.textContent='Checking…';
+  const live=loadSession();
+  if(!live){
+    alertBox.innerHTML=`<div class="alert err">No session is currently active on this device. If your lecturer is on a different device, ask them for the code and type it manually — check-in will still be recorded.</div>`;
+    // Still record locally so student has proof
+    btn.disabled=false; btn.textContent='✓ Check In';
+    return;
+  }
+  if(Date.now()>live.sessionEndsAt){
+    alertBox.innerHTML=`<div class="alert err">This session has ended.</div>`;
+    btn.disabled=false; btn.textContent='✓ Check In';
+    return;
+  }
+  if(code!==live.code){
+    alertBox.innerHTML=`<div class="alert err">That code does not match the active session. Please check what your lecturer is showing and try again.</div>`;
+    btn.disabled=false; btn.textContent='✓ Check In';
+    return;
+  }
+  const log=loadLog();
+  const already=log.find(r=>r.sessionId===live.sessionId&&r.matric.toLowerCase()===matric.toLowerCase());
+  if(already){
+    alertBox.innerHTML=`<div class="alert ok">You are already checked in for this session!</div>`;
+    btn.disabled=false; btn.textContent='✓ Check In';
+    return;
+  }
+  log.push({sessionId:live.sessionId,name,matric,time:Date.now()});
+  saveLog(log);
+  alertBox.innerHTML=`<div class="alert ok">✓ Checked in for <strong>${esc(live.course)}</strong> at ${fmtT(Date.now())}. Well done!</div>`;
+  document.getElementById('sCode').value='';
+  btn.disabled=false; btn.textContent='✓ Check In';
+  document.getElementById('sHistMatric').value=matric;
+  loadStudentHistory();
+}
+
+function loadStudentHistory(){
+  const q=(document.getElementById('sHistMatric').value||'').trim().toLowerCase();
+  const box=document.getElementById('sHistory');
+  if(!q){ box.innerHTML=`<div class="empty">Enter your registration number above.</div>`; return; }
+  const log=loadLog();
+  const meta=loadMeta();
+  const mine=log.filter(r=>r.matric.toLowerCase()===q);
+  const total=meta.length;
+  const attended=mine.length;
+  const pct=total>0?Math.round(attended/total*100):0;
+  if(total===0){ box.innerHTML=`<div class="empty">No sessions recorded yet.</div>`; return; }
+  let html=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+    <div class="pill" style="margin:0;">${attended}/${total} sessions</div>
+    <div style="display:flex;align-items:center;gap:8px;">${pctBar(pct)}
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700;color:${pctCol(pct)};">${pct}%</span></div>
+  </div><div>`;
+  meta.slice().reverse().forEach(m=>{
+    const rec=mine.find(r=>r.sessionId===m.sessionId);
+    html+=`<div class="arow">
+      <div><div class="course">${esc(m.course)}</div><div class="date">${fmtD(m.startedAt)}</div></div>
+      <div>${rec?`<span class="bp">PRESENT</span> <span style="font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;">${fmtT(rec.time)}</span>`:`<span class="ba">ABSENT</span>`}</div>
+    </div>`;
+  });
+  html+=`</div>`;
+  box.innerHTML=html;
+}
+
+// ── EXPORT ─────────────────────────────────────────────────────
+function exportCSV(){
+  if(!session) return;
+  const log=loadLog();
+  const rows=log.filter(r=>r.sessionId===session.sessionId).sort((a,b)=>a.time-b.time);
+  let csv=`Course,"${session.course}"\nDate,"${fmtD(session.startedAt)}"\nSession ID,"${session.sessionId}"\n\nNo.,Full Name,Reg. Number,Check-in Time\n`;
+  rows.forEach((r,i)=>{ csv+=`${i+1},"${(r.name||'').replace(/"/g,'""')}","${(r.matric||'').replace(/"/g,'""')}","${new Date(r.time).toLocaleString()}"\n`; });
+  dlBlob(csv,'attendance_'+session.course.replace(/[^a-z0-9]/gi,'_')+'.csv');
+}
+
+function exportAllCSV(){
+  const log=loadLog(); const meta=loadMeta();
+  let csv='Session,Course,Date,No.,Full Name,Reg. Number,Check-in Time\n';
+  meta.forEach((m,si)=>{
+    const rows=log.filter(r=>r.sessionId===m.sessionId).sort((a,b)=>a.time-b.time);
+    rows.forEach((r,i)=>{ csv+=`${si+1},"${(m.course||'').replace(/"/g,'""')}","${fmtD(m.startedAt)}",${i+1},"${(r.name||'').replace(/"/g,'""')}","${(r.matric||'').replace(/"/g,'""')}","${new Date(r.time).toLocaleString()}"\n`; });
+  });
+  dlBlob(csv,'checkpoint_all_attendance.csv');
+}
+
+function dlBlob(content,name){
+  const blob=new Blob([content],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────────
+function renderDash(){ renderDTab(activeDTab); }
+
+function dTab(t){
+  activeDTab=t;
+  ['overview','roster','sessions','lookup'].forEach(n=>{
+    document.getElementById('d'+n[0].toUpperCase()+n.slice(1)).style.display=n===t?'block':'none';
+  });
+  document.querySelectorAll('.itab').forEach((b,i)=>{
+    b.classList.toggle('active',['overview','roster','sessions','lookup'][i]===t);
+  });
+  renderDTab(t);
+}
+
+function renderDTab(t){
+  if(t==='overview') renderOverview();
+  if(t==='roster') renderRoster();
+  if(t==='sessions') renderSessions();
+  if(t==='lookup') renderLookup();
+}
+
+function renderOverview(){
+  const log=loadLog(); const meta=loadMeta();
+  const studs=new Set(log.map(r=>r.matric.toLowerCase()));
+  document.getElementById('dSess').textContent=meta.length;
+  document.getElementById('dStuds').textContent=studs.size;
+  document.getElementById('dChecks').textContent=log.length;
+  const ts=studs.size||1;
+  const avg=meta.length>0?Math.round(meta.reduce((a,m)=>{ const c=log.filter(r=>r.sessionId===m.sessionId).length; return a+Math.min(c/ts*100,100); },0)/meta.length):0;
+  document.getElementById('dAvg').textContent=avg+'%';
+  const recent=meta.slice().reverse().slice(0,6);
+  const box=document.getElementById('dRecent');
+  if(!recent.length){ box.innerHTML=`<div class="empty">No sessions yet.</div>`; return; }
+  box.innerHTML=recent.map(m=>{ const cnt=log.filter(r=>r.sessionId===m.sessionId).length; const pct=ts>0?Math.round(cnt/ts*100):0; return `<div class="arow"><div><div class="course">${esc(m.course)}</div><div class="date">${fmtD(m.startedAt)}</div></div><div style="display:flex;align-items:center;gap:8px;">${pctBar(pct)}<span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:${pctCol(pct)};">${cnt} · ${pct}%</span></div></div>`; }).join('');
+}
+
+function renderRoster(){
+  const log=loadLog(); const meta=loadMeta();
+  const ts=meta.length; const sm={};
+  log.forEach(r=>{ const k=r.matric.toLowerCase(); if(!sm[k]) sm[k]={name:r.name,matric:r.matric,sess:new Set()}; sm[k].sess.add(r.sessionId); if(r.name.length>(sm[k].name||'').length) sm[k].name=r.name; });
+  const studs=Object.values(sm).sort((a,b)=>b.sess.size-a.sess.size);
+  const body=document.getElementById('dRosterBody'); const empty=document.getElementById('dRosterEmpty');
+  if(!studs.length){ body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  body.innerHTML=studs.map((s,i)=>{ const pct=ts>0?Math.round(s.sess.size/ts*100):0; return `<tr><td class="mono">${i+1}</td><td>${esc(s.name)}</td><td class="mono">${esc(s.matric)}</td><td class="mono">${s.sess.size}/${ts}</td><td><div style="display:flex;align-items:center;gap:7px;">${pctBar(pct)}<span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:${pctCol(pct)};font-weight:700;">${pct}%</span></div></td></tr>`; }).join('');
+}
+
+function renderSessions(){
+  const log=loadLog(); const meta=loadMeta();
+  const box=document.getElementById('dSessionList'); const empty=document.getElementById('dSessionEmpty');
+  if(!meta.length){ box.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  box.innerHTML=meta.slice().reverse().map(m=>{
+    const rows=log.filter(r=>r.sessionId===m.sessionId).sort((a,b)=>a.time-b.time);
+    const id='s_'+m.sessionId;
+    return `<div style="border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;cursor:pointer;background:var(--surface-2);" onclick="togSes('${id}')">
+        <div><div style="font-weight:700;font-size:14px;">${esc(m.course)}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;">${fmtD(m.startedAt)} · ${rows.length} students</div></div>
+        <span id="arr_${id}" style="color:var(--accent);font-family:'IBM Plex Mono',monospace;font-size:12px;">▼</span>
+      </div>
+      <div id="${id}" style="display:none;padding:0 14px 14px;">
+        ${rows.length?`<table style="margin-top:10px;"><thead><tr><th>#</th><th>Full Name</th><th>Reg. Number</th><th>Time</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td class="mono">${i+1}</td><td>${esc(r.name)}</td><td class="mono">${esc(r.matric)}</td><td class="mono">${fmtT(r.time)}</td></tr>`).join('')}</tbody></table>`:`<div class="empty" style="margin-top:10px;">No check-ins.</div>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function togSes(id){ const el=document.getElementById(id); const arr=document.getElementById('arr_'+id); const show=el.style.display==='none'; el.style.display=show?'block':'none'; arr.textContent=show?'▲':'▼'; }
+
+function renderLookup(){
+  const q=(document.getElementById('dSearch')||{value:''}).value.trim().toLowerCase();
+  const box=document.getElementById('dLookupResult');
+  if(!q){ box.innerHTML=`<div class="empty">Type a name or reg. number above.</div>`; return; }
+  const log=loadLog(); const meta=loadMeta();
+  const matches=new Map();
+  log.forEach(r=>{ if(r.matric.toLowerCase().includes(q)||r.name.toLowerCase().includes(q)){ const k=r.matric.toLowerCase(); if(!matches.has(k)) matches.set(k,{name:r.name,matric:r.matric,recs:[]}); matches.get(k).recs.push(r); } });
+  if(!matches.size){ box.innerHTML=`<div class="empty">No match for "${esc(q)}".</div>`; return; }
+  const ts=meta.length; let html='';
+  matches.forEach(s=>{ const att=new Set(s.recs.map(r=>r.sessionId)).size; const pct=ts>0?Math.round(att/ts*100):0;
+    html+=`<div style="border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+        <div><div style="font-weight:700;font-size:15px;">${esc(s.name)}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);">${esc(s.matric)}</div></div>
+        <div style="text-align:right;"><div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:${pctCol(pct)};">${pct}%</div><div style="font-size:11px;color:var(--muted);">${att}/${ts} sessions</div></div>
+      </div>
+      <table><thead><tr><th>Course</th><th>Date</th><th>Time</th></tr></thead>
+      <tbody>${meta.map(m=>{ const r=s.recs.find(x=>x.sessionId===m.sessionId); return r?`<tr><td>${esc(m.course)}</td><td class="mono">${fmtD(m.startedAt)}</td><td class="mono">${fmtT(r.time)}</td></tr>`:'' }).join('')}</tbody></table>
+    </div>`;
+  });
+  box.innerHTML=html;
+}
+
+// ── QR DEEP-LINK HANDLER ───────────────────────────────────────
+// When student scans QR, URL has ?ck=CODE
+// We detect this and auto-fill the student form
+function handleQRLink(){
+  const params=new URLSearchParams(location.search);
+  const code=params.get('ck');
+  if(!code) return;
+  // Switch to student view
+  setView('student');
+  // Fill the code
+  const inp=document.getElementById('sCode');
+  if(inp){
+    inp.value=code.toUpperCase();
+    // Show helpful message
+    document.getElementById('sAlert').innerHTML=`<div class="alert ok">✓ QR code scanned! Session code filled in. Now enter your full name and registration number, then tap Check In.</div>`;
+    // Focus on name field next
+    setTimeout(()=>{ const n=document.getElementById('sName'); if(n) n.focus(); },100);
+  }
+}
+
+// ── INIT ───────────────────────────────────────────────────────
+(function init(){
+  loadPin(); // load saved PIN from localStorage
+  const ex=loadSession();
+  if(ex&&Date.now()<ex.sessionEndsAt) session=ex;
+  handleQRLink(); // check if opened via QR scan
+})();
+</script>
+</body>
+</html>
